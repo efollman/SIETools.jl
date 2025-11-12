@@ -1,10 +1,22 @@
 name = "SIETools"
 uuid = "b6300805-7387-41d7-84dd-5e33daf9b326"
-authors = ["Evan Follman"]
 version = "1.0.0-DEV"
+authors = ["Evan Follman"]
+
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
+EzXML = "8f5d6c58-4d21-5cfd-889c-e3ad7ee6a615"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+StatsKit = "2cb19f9e-ec4d-5c53-8573-a4542a68d3f0"
 
 [compat]
-julia = "1.6.7"
+CairoMakie = "0.15"
+Colors = "0.13"
+EzXML = "1"
+Makie = "0.24"
+StatsKit = "0.3"
+julia = "1.12"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
