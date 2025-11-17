@@ -4,7 +4,7 @@ using CairoMakie
 using Statistics
 using DataFrames
 using Colors
-using EzXML
+using SIEParser
 
 mytheme = Theme(
     Axis = (
@@ -27,7 +27,7 @@ CairoMakie.activate!(type = "svg");
 
 include("makeVertChartGen.jl")
 include("markerExtractor.jl")
-include("parseSIEKerchoo.jl")
+#include("parseSIEKerchoo.jl")
 
 export parseSIE
 export makeChart
