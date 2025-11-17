@@ -1,7 +1,8 @@
 module SIETools
 
 using CairoMakie
-using StatsKit
+using Statistics
+using DataFrames
 using Colors
 using EzXML
 
