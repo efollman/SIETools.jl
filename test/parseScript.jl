@@ -1,6 +1,6 @@
 
 function parseTest()
-    ch = @time parseSIE("TestData/HOBBS Vacuum Test-X1.sie");
+    ch = @time parseSIE("TestData/4adc17fd16e41a23004d59328d7dd6f4a3c3ee620b1921ecc0275d1e.sie");
 
     #@time markData = markExtract(ch,"Binary_Marker");
 
