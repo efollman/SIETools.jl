@@ -1,6 +1,6 @@
 name = "SIETools"
 uuid = "b6300805-7387-41d7-84dd-5e33daf9b326"
-version = "1.0.0-DEV"
+version = "1.0.0"
 authors = ["Evan Follman"]
 
 [deps]
