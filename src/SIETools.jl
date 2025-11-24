@@ -27,11 +27,13 @@ CairoMakie.activate!(type = "svg");
 
 include("makeVertChartGen.jl")
 include("markerExtractor.jl")
+include("printCH.jl")
 #include("parseSIEKerchoo.jl")
 
 export parseSIE
 export makeChart
 export markExtract
+export CHInfo
 # Write your package code here.
 
 end
