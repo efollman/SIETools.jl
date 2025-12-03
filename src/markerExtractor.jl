@@ -6,7 +6,7 @@ didnt implement here as it works differently and i didnt want to refactor script
  
 -Evan Follman
 =#
-function markExtract(sieData::Dict, markKey::String, onlyLargest::Bool = true)
+function markExtract(sieData::Dict, markKey::String; onlyLargest::Bool = true)
     if onlyLargest == false
         @error "onlyLargest = false is not yet supported"
     end

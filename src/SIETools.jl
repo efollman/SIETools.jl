@@ -1,9 +1,10 @@
 module SIETools
 
 using CairoMakie
-using StatsKit
+using Statistics
+using DataFrames
 using Colors
-using EzXML
+using SIEParser
 
 mytheme = Theme(
     Axis = (
@@ -26,11 +27,13 @@ CairoMakie.activate!(type = "svg");
 
 include("makeVertChartGen.jl")
 include("markerExtractor.jl")
-include("parseSIEKerchoo.jl")
+include("printCH.jl")
+#include("parseSIEKerchoo.jl")
 
 export parseSIE
 export makeChart
 export markExtract
+export CHInfo
 # Write your package code here.
 
 end
