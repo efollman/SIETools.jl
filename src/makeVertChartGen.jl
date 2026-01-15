@@ -39,9 +39,9 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
     #println(chKeys)
     ##add sort by channel num
     N::UInt = length(chKeys)
-    width::UInt = rowSize[1]
+    plotWidth::UInt = rowSize[1]
     rowHeight::UInt = rowSize[2]
-    F = Figure(size = (width, round(rowHeight*sum(heightRatio))))
+    F = Figure(size = (plotWidth, round(rowHeight*sum(heightRatio))))
     ax = []
     colori::UInt = 1
     for i in eachindex(chKeys)
@@ -55,9 +55,10 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
         axi = Axis(F[i,1];
             title = name, 
             ylabel = chUnits,
-            width = rowSize[1],
-            height = rowSize[2]*heightRatio[i],
+            #width = plotWidth,
+            #height = rowHeight*heightRatio[i],
         )
+        rowsize!(F.layout,i,Auto(heightRatio[i]))
         push!(ax,axi)
         time::Dict{UInt, Union{Vector{Float64},LinRange{Float64, Int64}}} = Dict()
         data::Dict{UInt, Union{Vector{Float32},Vector{Float64}}} = Dict()
@@ -99,7 +100,11 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
         if i == N
             ax[i].xlabel = ("Time (seconds)") # change to pull from tags in case it isnt seconds some day
         end
-        axislegend(framevisible = false, position = :lt)
+        
+        if length(chiV) > 1
+            #axislegend(framevisible = false, position = :lt)
+            Legend(F[i,2],ax[i])
+        end
 
     end
     rowgap!(F.layout,5)
