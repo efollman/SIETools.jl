@@ -55,7 +55,8 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
         axi = Axis(F[i,1];
             title = name, 
             ylabel = chUnits,
-            aspect = rowSize[1] / (rowSize[2]*heightRatio[i])
+            width = rowSize[1],
+            height = rowSize[2]*heightRatio[i],
         )
         push!(ax,axi)
         time::Dict{UInt, Union{Vector{Float64},LinRange{Float64, Int64}}} = Dict()
