@@ -4,7 +4,7 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSthreshold::UInt = UInt(10000), rowSize::Tuple{Int,Int} = (1000,300), heightRatio::Vector{Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
+function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSthreshold::UInt = UInt(10000), rowSize::Tuple{Int,Int} = (1000,300), heightRatio::Vector{<:Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
     if isempty(channelsN)
         channelsNKeys = collect(keys(ch))
         chids = []
