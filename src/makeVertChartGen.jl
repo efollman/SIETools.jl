@@ -4,7 +4,7 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSthreshold::UInt = UInt(10000), rowSize::Tuple{Int,Int} = (1000,300), channelsN::Vector = [])
+function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSthreshold::UInt = UInt(10000), rowSize::Tuple{Int,Int} = (1000,300), heightRatio::Vector{Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
     if isempty(channelsN)
         channelsNKeys = collect(keys(ch))
         chids = []
@@ -25,12 +25,23 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
             push!(chKeys,channelsN[i])
         end
     end
+
+    if isempty(heightRatio)
+        heightRatio = fill(1,length(channelsN))
+    end
+
+    while length(heightRatio) < length(channelsN)
+        push!(heightRatio,1)
+    end
+
+    heightRatio = heightRatio[1:length(channelsN)]
+
     #println(chKeys)
     ##add sort by channel num
     N::UInt = length(chKeys)
     width::UInt = rowSize[1]
     rowHeight::UInt = rowSize[2]
-    F = Figure(size = (width, round(rowHeight*N)))
+    F = Figure(size = (width, round(rowHeight*sum(heightRatio))))
     ax = []
     colori::UInt = 1
     for i in eachindex(chKeys)
@@ -44,6 +55,7 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
         axi = Axis(F[i,1];
             title = name, 
             ylabel = chUnits,
+            aspect = rowSize[1] / (rowSize[2]*heightRatio[i])
         )
         push!(ax,axi)
         time::Dict{UInt, Union{Vector{Float64},LinRange{Float64, Int64}}} = Dict()
@@ -70,7 +82,11 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
 
             time[k],data[k] = lttb(time[k],data[k],DSthreshold);
         end
-        #colori=1
+
+        if cycleColor == false
+            colori=1
+        end
+
         for k in eachindex(chiV)
             lines!(ax[i], time[k], data[k];
                 color = Cycled(colori),
