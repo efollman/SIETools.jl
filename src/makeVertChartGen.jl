@@ -4,7 +4,13 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSthreshold::UInt = UInt(10000), rowSize::Tuple{Int,Int} = (1000,300), heightRatio::Vector{<:Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
+function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
+
+    if DSthreshold <= 3
+        @warn "invalid DSThreshold, reverting to default 10000"
+        DSthreshold = 10000
+    end
+    
     if isempty(channelsN)
         channelsNKeys = collect(keys(ch))
         chids = []
@@ -35,6 +41,7 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
     end
 
     heightRatio = heightRatio[1:length(channelsN)]
+    colorFlag::Bool = false
 
     #println(chKeys)
     ##add sort by channel num
@@ -60,8 +67,8 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
         )
         rowsize!(F.layout,i,Auto(heightRatio[i]))
         push!(ax,axi)
-        time::Dict{UInt, Union{Vector{Float64},LinRange{Float64, Int64}}} = Dict()
-        data::Dict{UInt, Union{Vector{Float32},Vector{Float64}}} = Dict()
+        time::Dict{UInt, Union{Vector{<:Real},LinRange}} = Dict()
+        data::Dict{UInt, Vector{<:Real}} = Dict()
         #Threads.@threads 
         for k in eachindex(chiV)
             chi = chiV[k]
@@ -70,6 +77,11 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
             else
                 name = name*", "*"Ch"*string(ch[chi]["id"])*": "*chi
             end
+
+            if ch[chi]["timeunits"] != "Seconds"
+                @warn "Time units not \"Seconds\""
+            end
+
             ax[i].title = name
             time[k] = ch[chi]["time"]
             data[k] = ch[chi]["data"]
@@ -82,11 +94,22 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
                 data[k] = data[k][condition]
             end
 
+            
+
             time[k],data[k] = lttb(time[k],data[k],DSthreshold);
+
         end
 
-        if cycleColor == false
-            colori=1
+        if length(chiV) > 1
+            colorFlag = true
+        end
+
+        if cycleColor == false || colorFlag == true
+            colori = 1
+        end
+
+        if length(chiV) == 1
+            colorFlag = false
         end
 
         for k in eachindex(chiV)
@@ -97,14 +120,16 @@ function makeChart(ch::Dict; plotRange::Tuple{Float64,Float64} = (NaN,NaN), DSth
             )
             colori += 1
         end
+
         if i == N
-            ax[i].xlabel = ("Time (seconds)") # change to pull from tags in case it isnt seconds some day
+            ax[i].xlabel = ("Time (Seconds)") # change to pull from tags in case it isnt seconds some day
         end
         
         if length(chiV) > 1
             #axislegend(framevisible = false, position = :lt)
             Legend(F[i,2],ax[i])
         end
+        linkxaxes!(ax[1],axi)
 
     end
     rowgap!(F.layout,5)
