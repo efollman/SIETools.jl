@@ -4,7 +4,7 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = [], channelsN::Vector = [], cycleColor::Bool = true)
+function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = Vector{Float64}[], channelsN::Vector = [], cycleColor::Bool = true)
 
     if DSthreshold <= 3
         @warn "invalid DSThreshold, reverting to default 10000"
