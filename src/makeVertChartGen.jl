@@ -4,7 +4,7 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = Vector{Float64}[], channelsN::Vector = [], cycleColor::Bool = true)
+function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = Vector{Float64}([]), channelsN::Vector = [], cycleColor::Bool = true)
 
     if DSthreshold <= 3
         @warn "invalid DSThreshold, reverting to default 10000"
@@ -62,6 +62,8 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         axi = Axis(F[i,1];
             title = name, 
             ylabel = chUnits,
+            #xticks = WilkinsonTicks(10),
+            #yticks = WilkinsonTicks(10),
             #width = plotWidth,
             #height = rowHeight*heightRatio[i],
         )
@@ -130,6 +132,9 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
             Legend(F[i,2],ax[i])
         end
         linkxaxes!(ax[1],axi)
+
+        axi.yticks = LinearTicks(10)
+        axi.xticks = LinearTicks(20)
 
     end
     rowgap!(F.layout,5)
