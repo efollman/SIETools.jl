@@ -4,7 +4,7 @@ A lot of things are still hardcoded however, working on fully generalizing
 =#
 
 
-function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = Vector{Float64}([]), channelsN::Vector = [], cycleColor::Bool = true)
+function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthreshold::Integer = 10000, rowSize::Tuple{<:Integer,<:Integer} = (1000,300), heightRatio::Vector{<:Real} = Vector{Float64}([]), channelsN::Vector = [], cycleColor::Bool = true, table::DataFrame = DataFrame(), tablePos::Real = 0)
 
     if DSthreshold <= 3
         @warn "invalid DSThreshold, reverting to default 10000"
@@ -58,8 +58,13 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         if haskey(ch[chiV[1]], "units")
             chUnits = ch[chiV[1]]["units"]
         end
+        if tablePos != 0 && i >= tablePos
+            tableoff = 1
+        else
+            tableoff = 0
+        end
         name::String = ""
-        axi = Axis(F[i,1];
+        axi = Axis(F[i+tableoff,1];
             title = name, 
             ylabel = chUnits,
             #xticks = WilkinsonTicks(10),
