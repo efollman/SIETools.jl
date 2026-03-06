@@ -142,6 +142,14 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         axi.xticks = LinearTicks(20)
 
     end
+
+    if tablePos != 0
+        axt = Axis(F[tablePos,1])
+        hidedecorations!(axt)
+        render_table(axt,table)
+        
+    end
+
     rowgap!(F.layout,5)
     return F
     empty!(F)
@@ -213,34 +221,6 @@ function lttb(x::Union{LinRange{Float64, Int64},AbstractVector{<:Real}}, y::Abst
     return out_x_lr, out_y
 end
 
-function moving_mean(x::Vector, k::Int)
-    n = length(x)
-    if n < k
-        return Float64[]
-    end
-    m = similar(x, n - k + 1)
-    s = sum(@views x[1:k])
-    m[1] = s / k
-    for i in 2:(n - k + 1)
-        s = s - x[i - 1] + x[i + k - 1]
-        m[i] = s / k
-    end
-    return m
-end
-
-function sustained_max(data::Vector, percentile::Real , window::Int)
-    percentileValue::Float64 = quantile(data, percentile)
-    filtered_data::Vector{Real} = filter(x -> x <= percentileValue, data)
-    susMax = maximum(moving_mean(filtered_data,window))
-    return susMax
-end
-
-function sustained_min(data::Vector, percentile::Real , window::Int)
-    percentileValue::Float64 = 1 - quantile(data, percentile)
-    filtered_data::Vector{Real} = filter(x -> x >= percentileValue, data)
-    susMin = minimum(moving_mean(filtered_data,window))
-    return susMin
-end
 
 function render_table(ax, tbl)
     # RENDER_TABLE Displays a table in the specified axes using text and lines.
@@ -295,13 +275,13 @@ function render_table(ax, tbl)
     # Draw horizontal lines
     for r in 0:totalRows
         y = 1 - r * rowHeight
-        lines!(ax, [0, 1], [y, y], color = RGBf(90,90,90), linewidth = 0.5)
+        lines!(ax, [0, 1], [y, y], color = RGBf(0,0,0), linewidth = 0.5)
     end
 
     # Draw vertical lines
     for c in 0:numCols
         x = cumWidths[c + 1]
-        lines!(ax, [x, x], [0, 1], color = RGBf(90,90,90), linewidth = 0.5)
+        lines!(ax, [x, x], [0, 1], color = RGBf(0,0,0), linewidth = 0.5)
     end
 
     limits!(ax, 0, 1, 0, 1)

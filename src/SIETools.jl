@@ -15,7 +15,7 @@ mytheme = Theme(
         figure_padding = 5,
     ),
 #fontsize = 14,
-linewidth = 1,
+linewidth = 0.7,
 #backgroundcolor= :gray,
     
 )
@@ -28,12 +28,17 @@ CairoMakie.activate!(type = "svg");
 include("makeVertChartGen.jl")
 include("markerExtractor.jl")
 include("printCH.jl")
+include("analysisTools.jl")
+include("SIETidyr.jl")
 #include("parseSIEKerchoo.jl")
 
 export parseSIE
 export makeChart
 export markExtract
 export CHInfo
+export moving_mean
+export sustained_max
+export tidySIE
 # Write your package code here.
 
 end
