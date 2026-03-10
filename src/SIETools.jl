@@ -25,12 +25,13 @@ set_theme!(mytheme)
 
 CairoMakie.activate!(type = "svg");
 
-include("makeVertChartGen.jl")
+
 include("markerExtractor.jl")
 include("printCH.jl")
 include("analysisTools.jl")
 include("SIETidyr.jl")
-#include("parseSIEKerchoo.jl")
+include("plotTools.jl")
+include("makeVertChartGen.jl")
 
 export parseSIE
 export makeChart
@@ -39,6 +40,5 @@ export CHInfo
 export moving_mean
 export sustained_max
 export tidySIE
-# Write your package code here.
 
 end
