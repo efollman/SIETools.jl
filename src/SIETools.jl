@@ -21,7 +21,7 @@ linewidth = 0.7,
 )
 mythemeLatex = merge(mytheme, theme_latexfonts())
 mythemeDarkLatex = merge(mythemeLatex, theme_dark())
-set_theme!(mytheme)
+set_theme!(mythemeLatex)
 
 CairoMakie.activate!(type = "svg");
 
