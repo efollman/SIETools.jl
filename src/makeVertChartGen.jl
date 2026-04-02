@@ -16,7 +16,7 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         chids = []
         chPerm = []
         for key in channelsNKeys
-            push!(chids,ch[key]["id"])
+            push!(chids,ch[key]["tags"]["id"])
         chPerm = sortperm(chids)
         end
         for i in chPerm
@@ -56,7 +56,7 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         chUnits::String = ""
 
         if haskey(ch[chiV[1]], "units")
-            chUnits = ch[chiV[1]]["units"]
+            chUnits = ch[chiV[1]]["tags"]["dim1"]["core:units"]
         end
         if tablePos != 0 && i >= tablePos
             tableoff = 1
@@ -80,18 +80,19 @@ function makeChart(ch::Dict; plotRange::Tuple{<:Real, <:Real} = (NaN,NaN), DSthr
         for k in eachindex(chiV)
             chi = chiV[k]
             if name == ""
-                name = name*"Ch"*string(ch[chi]["id"])*": "*chi
+                name = name*"Ch"*string(ch[chi]["tags"]["id"])*": "*chi
             else
-                name = name*", "*"Ch"*string(ch[chi]["id"])*": "*chi
+                name = name*", "*"Ch"*string(ch[chi]["tags"]["id"])*": "*chi
             end
 
-            if ch[chi]["timeunits"] != "Seconds"
+            if ch[chi]["tags"]["dim0"]["core:units"] != "Seconds"
                 @warn "Time units not \"Seconds\""
             end
 
             ax[i].title = name
-            time[k] = ch[chi]["time"]
-            data[k] = ch[chi]["data"]
+            time[k] = ch[chi]["v0"]
+            data[k] = ch[chi]["v1"]
+            
 
             if plotRange !== (NaN,NaN)
                 lower_bound = plotRange[1]

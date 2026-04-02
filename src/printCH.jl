@@ -1,3 +1,5 @@
+#Needs fixing with decoder change/tag changes
+
 function CHInfo(sieData::Dict)
     keyList::Vector{String} = []
     idList::Vector{UInt} = []

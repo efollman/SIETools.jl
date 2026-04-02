@@ -32,6 +32,7 @@ include("analysisTools.jl")
 include("SIETidyr.jl")
 include("plotTools.jl")
 include("makeVertChartGen.jl")
+include("canErr.jl")
 
 export parseSIE
 export makeChart
@@ -40,5 +41,6 @@ export CHInfo
 export moving_mean
 export sustained_max
 export tidySIE
+export canErrFindr
 
 end

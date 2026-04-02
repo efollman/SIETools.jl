@@ -1,17 +1,12 @@
 #=
-WIP Untested & Unused in this test.
-Started this here as marker index was being used a lot.
-This is probably a better way to handle the data in the future.
-didnt implement here as it works differently and i didnt want to refactor scripts, so unfortunately absurd copy paste code it is
- 
--Evan Follman
+may need more fixes with tag/decoder changes
 =#
 function markExtract(sieData::Dict, markKey::String; onlyLargest::Bool = true)
     if onlyLargest == false
         @error "onlyLargest = false is not yet supported"
     end
-    mData::Vector{<:Real} = sieData[markKey]["data"]
-    mSR::Float64 = sieData[markKey]["sr"]
+    mData::Vector{<:Real} = sieData[markKey]["v1"]
+    mSR::Float64 = sieData[markKey]["tags"]["core:sample_rate"]
     mInd::Dict{UInt,Tuple{Float64,Float64}} = markerIndex(mData,mSR)
 
     extractedData::Dict{String,Dict{Int,Vector{<:Real}}} = Dict()
@@ -20,8 +15,8 @@ function markExtract(sieData::Dict, markKey::String; onlyLargest::Bool = true)
     for key in keys(sieData)
         extractedData[key] = Dict()
         for indKey in keys(mInd)
-            chData = sieData[key]["data"]
-            chSR = sieData[key]["sr"]
+            chData = sieData[key]["v1"]
+            chSR = sieData[key]["tags"]["core:sample_rate"]
             extractedData[key][indKey] = chData[Int(floor(mInd[indKey][1]*chSR)+1):Int(floor(mInd[indKey][2]*chSR)+1)]
 
         end
