@@ -4,7 +4,7 @@ using CairoMakie
 using Statistics
 using DataFrames
 using Colors
-using SIEParser
+using SomatSIE
 
 mytheme = Theme(
     Axis = (
