@@ -74,13 +74,3 @@ function sustained_max(data::Vector{<:Real}, window::Int)
     return m
 
 end
-
-function modZoutlier(data::Vector{<:Real}) #slooooow
-    xm = median(data)
-    MAD = median(abs.(data .- xm))
-    filtData = filter(x -> (0.6745*(x-xm))/MAD <= 3.5, data)
-    return filtData
-end
-
-function savitzkyGolay() #smoothing algorithm unimplemented
-end

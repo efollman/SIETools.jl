@@ -5,6 +5,7 @@ using Statistics
 using DataFrames
 using Colors
 using SomatSIE
+using HDF5
 
 mytheme = Theme(
     Axis = (
@@ -33,6 +34,10 @@ include("SIETidyr.jl")
 include("plotTools.jl")
 include("makeVertChartGen.jl")
 include("canErr.jl")
+include("filters.jl")
+include("fileTree.jl")
+include("toHDF5.jl")
+
 
 export parseSIE
 export makeChart
@@ -40,7 +45,17 @@ export markExtract
 export CHInfo
 export moving_mean
 export sustained_max
+
 export tidySIE
+
 export canErrFindr
+
+export gaussian_filter
+
+export doTree
+export isSIE
+export isHDF5
+export basicChartTree
+export SIETreeToHDF5
 
 end
