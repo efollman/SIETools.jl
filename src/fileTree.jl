@@ -48,14 +48,21 @@ function doTree(inpath::String,outpath::String,fun::Function,cond::Function)
 end
 
 function isSIE(filei::String)
-    if filei[end-3:end] == ".sie"
+    if length(filei) > 3 && filei[end-3:end] == ".sie"
         return true
     end
     return false
 end
 
 function isHDF5(filei::String)
-    if filei[end-2:end] == ".h5"
+    if length(filei) > 2 && filei[end-2:end] == ".h5"
+        return true
+    end
+    return false
+end
+
+function isJLD2(filei::String)
+    if length(filei) > 4 && filei[end-4:end] == ".jld2"
         return true
     end
     return false
@@ -75,4 +82,80 @@ function basicChartTree(SIEDIR::String,PlotDIR::String)
         save(joinpath(savepath,relString, filenamei * ".svg"), fig);
     end
     doTree(SIEDIR,PlotDIR,taskFun,isSIE)
+end
+
+#Errors on raw data VoV UInt8
+function dictToHDF5(filepath::String,dict::Dict)
+
+
+    function write_dict(groupname, dict::Dict, fid)
+        if !isempty(groupname)
+            g = create_group(fid, groupname) 
+        end
+        for (key, value) in dict
+
+            keyname = groupname * "/" * string(key)
+            
+            if typeof(value) <: Dict # nested, recurse
+                if string(key) == "tags"
+                    for (tag,tagV) in value
+                        if typeof(tagV) <: Dict #need to fix for xform tags / dim tags
+                            continue
+                        end
+                        attrs(fid[groupname])[string(tag)] = tagV
+                    end
+                    continue
+
+                end
+                write_dict(keyname, value,fid)
+                continue
+            elseif isa(value,LinRange)
+                tempDict::Dict = Dict()
+                tempDict["first"] = first(value)
+                tempDict["step"] = step(value)
+                tempDict["last"] = last(value)
+                write_dict(keyname,tempDict,fid)
+                continue
+            elseif isa(value,Tuple)
+                value = collect(value)
+            elseif isa(value, Type)
+                value = string(value)
+            end
+            write(fid,keyname,value)
+        end
+    end
+
+    h5open(filepath, "w") do fid
+        write_dict("",dict,fid)
+    end
+
+    return nothing
+end
+
+function SIETreeToHDF5(SIEPath::String,HDF5Path::String)
+    function SIEtoHDF5Task(root,filei,outpath,relString)
+        outfile = replace(filei,".sie" => ".h5");
+        if !isdir(joinpath(outpath,relString))
+            mkpath(joinpath(outpath,relString))
+        end
+        dictToHDF5(joinpath(outpath,relString,outfile),parseSIE(joinpath(root,filei)))
+    end
+    doTree(SIEPath,HDF5Path,SIEtoHDF5Task,isSIE)
+    return nothing
+end
+
+function SIETreeToJLD2(SIEPath::String,JLD2Path::String)
+    function SIEtoJLD2Task(root,filei,outpath,relString)
+        outfile = replace(filei,".sie" => ".jld2");
+        if !isdir(joinpath(outpath,relString))
+            mkpath(joinpath(outpath,relString))
+        end
+
+        sieD = parseSIE(joinpath(root,filei))
+
+        jldsave(joinpath(outpath,relString,outfile); sieD)
+        
+    end
+    doTree(SIEPath,JLD2Path,SIEtoJLD2Task,isSIE)
+    return nothing
 end

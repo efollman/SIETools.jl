@@ -6,6 +6,7 @@ using DataFrames
 using Colors
 using SomatSIE
 using HDF5
+using JLD2
 
 mytheme = Theme(
     Axis = (
@@ -36,7 +37,6 @@ include("makeVertChartGen.jl")
 include("canErr.jl")
 include("filters.jl")
 include("fileTree.jl")
-include("toHDF5.jl")
 
 
 export parseSIE
@@ -55,7 +55,9 @@ export gaussian_filter
 export doTree
 export isSIE
 export isHDF5
+export isJLD2
 export basicChartTree
 export SIETreeToHDF5
+export SIETreeToJLD2
 
 end
