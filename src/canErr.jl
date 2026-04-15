@@ -1,8 +1,13 @@
 function canErrFindr(sieCH::Dict)
     CANID,CANFrame = niceCan(Vector{Vector{UInt8}}(sieCH["v1"]))
-    pl, plID, t = CANErrPayloads(sieCH["v0"],CANID,CANFrame)
+    t = sieCH["v0"]
+    t, CANID, CANFrame = CANErrFilt(t,CANID,CANFrame)
+
+    pl, plID, t = CANErrPayloads(t,CANID,CANFrame)
+
     ErrFrame = InterpPL(pl,plID,t)
     eF = removeDupes(ErrFrame)
+    return eF
 end
 
 function niceCan(rawCan::Vector{Vector{UInt8}})
@@ -15,8 +20,19 @@ function niceCan(rawCan::Vector{Vector{UInt8}})
     return CANID, CANFrame
 end
 
-function CANErrFilt(time::Vector{Float64},CANID,CANFrame)
-    #filter out FECA and EC/EB headers ahead of time for bigger files?
+function CANErrFilt(time,CANID,CANFrame)
+    CANIDout = []
+    CANFrameout = []
+    timeout = []
+    for i in eachindex(CANID)
+        if ((0x00FFFF00 & CANID[i]) ⊻ 0x00FECA00) == 0 || ((0x00FFFF00 & CANID[i]) ⊻ 0x00ECFF00) == 0 || ((0x00FFFF00 & CANID[i]) ⊻ 0x00EBFF00) == 0
+            push!(CANIDout,CANID[i])
+            push!(CANFrameout,CANFrame[i])
+            push!(timeout,time[i])
+        end
+    end
+
+    return timeout, CANIDout, CANFrameout
 end
 
 function CANErrPayloads(time,CANID,CANFrame)
@@ -31,7 +47,7 @@ function CANErrPayloads(time,CANID,CANFrame)
             push!(payloadsID,CANID[i])
             push!(timeOut,time[i])
         end
-        if ((0x00FF0000 & CANID[i]) ⊻ 0x00EC0000) == 0
+        if ((0x00FFFF00 & CANID[i]) ⊻ 0x00ECFF00) == 0
             if reinterpret(UInt16,[CANFrame[i][6];CANFrame[i][7]])[1] == 0xFECA
                 if CANFrame[i][1] != 0x20
                     @warn "Not BAM?"
@@ -43,9 +59,10 @@ function CANErrPayloads(time,CANID,CANFrame)
                 LS = 0
                 while j <= length(CANID)
                     if CANID[j] == CANID[i]
-                        @warn "Unxpected new multiframe before last finished"
+                        @warn "Unxpected new multiframe before last finished: time: $(time[j]) id: 0x$(string(CANID[j],base=16)) frame: 0x$(bytes2hex(CANFrame[j])) next index expected: $currFrame length expected: $frames"
+                        break
                     end
-                    if (CANID[i]-0x00010000) == CANID[j] #converts original header from EC to EB
+                    if ((CANID[i] & 0x00ffffff)-0x00010000) == (CANID[j] & 0x00ffffff) #converts original header from EC to EB
 
                         if CANFrame[j][1] == currFrame #index check
 
@@ -72,15 +89,19 @@ function CANErrPayloads(time,CANID,CANFrame)
                             end
                         else
                             @warn "Index in multi frame desync"
+                            exframedata = []
+                            break
                         end
                     end
                     j+=1
                 end
 
-                for b = 0:((length(exframedata) ÷ 4)-1)
-                    push!(payloads,[LS;exframedata[(b*4)+1:(b*4)+4]])
-                    push!(payloadsID,CANID[i])
-                    push!(timeOut,time[i])
+                if length(exframedata) >= 4
+                    for b = 0:((length(exframedata) ÷ 4)-1)
+                        push!(payloads,[LS;exframedata[(b*4)+1:(b*4)+4]])
+                        push!(payloadsID,CANID[i])
+                        push!(timeOut,time[i])
+                    end
                 end
 
             end
@@ -112,14 +133,14 @@ function InterpPL(pl, plID, t)
 
             push!(TIME, te)
             push!(PGN, string(((plIDe & 0xFFFF00) >> 8),base=16))
-            push!(SA, string("ECU $(plIDe & 0xFF)"))
+            push!(SA, string("0x$(string((plIDe & 0xFF),base = 16))"))
             
-            push!(LS, string(reinterpret(UInt16,[ple[1];ple[2]])[1],base=16))
+            push!(LS, "0x$(string(reinterpret(UInt16,[ple[1];ple[2]])[1],base=16))")
             push!(SPN, currSPN)
             push!(FMI, ple[5] & 0b00011111)
             push!(OC, ple[6] & 0b01111111)
             if ple[6] & 0b10000000 > 0
-                @warn "CM bit = 1, Older SPN encoding version? SPN:$currSPN, Time:$te, Payload:$(bytes2hex(ple))"
+                @warn "CM bit = 1, Older SPN encoding version? SPN:$currSPN, Time:$te, Payload:0x$(bytes2hex(ple))"
             end
         end
     end
