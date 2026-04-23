@@ -48,7 +48,8 @@ end
 function _readwindow(file::SomatSIE.SieFile, ch::SomatSIE.Channel,
                      plotRange::Tuple{<:Real,<:Real})
     t = collect(timevec(file, ch))
-    d = Vector{Float64}(valuevec(file, ch))
+    dv = valuevec(file, ch)
+    d = dv isa Vector{Float64} ? dv : Vector{Float64}(dv)
     if !any(isnan, plotRange)
         cond = findall((t .>= plotRange[1]) .& (t .<= plotRange[2]))
         t = t[cond]
