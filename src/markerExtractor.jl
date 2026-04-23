@@ -1,50 +1,88 @@
 #=
-may need more fixes with tag/decoder changes
+markExtract: split every channel of a SIE file into segments delimited
+by the longest run of each unique level on a digital marker channel.
+Built directly on the SomatSIE 0.3 API.
 =#
-function markExtract(sieData::Dict, markKey::String; onlyLargest::Bool = true)
-    if onlyLargest == false
-        @error "onlyLargest = false is not yet supported"
-    end
-    mData::Vector{<:Real} = sieData[markKey]["v1"]
-    mSR::Float64 = sieData[markKey]["tags"]["core:sample_rate"]
-    mInd::Dict{UInt,Tuple{Float64,Float64}} = markerIndex(mData,mSR)
 
-    extractedData::Dict{String,Dict{Int,Vector{<:Real}}} = Dict()
-    chST::Float64 = 0
-    
-    for key in keys(sieData)
-        extractedData[key] = Dict()
-        for indKey in keys(mInd)
-            chData = sieData[key]["v1"]
-            chSR = sieData[key]["tags"]["core:sample_rate"]
-            extractedData[key][indKey] = chData[Int(floor(mInd[indKey][1]*chSR)+1):Int(floor(mInd[indKey][2]*chSR)+1)]
+"""
+    markExtract(file::SomatSIE.SieFile, markKey::AbstractString;
+                onlyLargest::Bool = true)
+    markExtract(path::AbstractString, markKey::AbstractString;
+                onlyLargest::Bool = true)
 
+For every distinct integer level on the marker channel `markKey`,
+return slices of every other numeric channel covering the marker's
+largest contiguous run at that level.
+
+Returns:
+
+    Dict{String, Dict{Int, Vector}}  # channel name -> marker level -> slice
+"""
+function markExtract(file::SomatSIE.SieFile, markKey::AbstractString;
+                     onlyLargest::Bool = true)
+    onlyLargest || @error "onlyLargest = false is not yet supported"
+
+    markCh = findchannelbyname(file, String(markKey))
+    markCh === nothing && error("marker channel not found: ", markKey)
+
+    mData = valuevec(file, markCh)
+    mData isa AbstractVector{<:Real} ||
+        error("marker channel '", markKey, "' is not a numeric series")
+
+    mSR = Float64(tagget(SomatSIE.tags(markCh), "core:sample_rate", NaN))
+    isnan(mSR) && error("marker channel '", markKey,
+                        "' has no core:sample_rate tag")
+
+    mInd = markerIndex(mData, mSR)
+
+    extracted = Dict{String, Dict{Int, Vector}}()
+    for ch in SomatSIE.channels(file)
+        chName = SomatSIE.name(ch)
+        dims   = SomatSIE.dimensions(ch)
+        length(dims) >= 2 || continue
+
+        chData = valuevec(file, ch)
+        chData isa AbstractVector{<:Real} || continue
+
+        chSR = Float64(tagget(SomatSIE.tags(ch), "core:sample_rate", NaN))
+        isnan(chSR) && continue
+
+        slices = Dict{Int, Vector}()
+        for (level, (tStart, tEnd)) in mInd
+            i0 = Int(floor(tStart * chSR) + 1)
+            i1 = Int(floor(tEnd   * chSR) + 1)
+            i0 = max(i0, 1); i1 = min(i1, length(chData))
+            i0 <= i1 && (slices[level] = chData[i0:i1])
         end
+        extracted[chName] = slices
     end
-
-    return extractedData
-
-
-
-
+    return extracted
 end
 
+markExtract(path::AbstractString, markKey::AbstractString; kwargs...) =
+    withfile(f -> markExtract(f, markKey; kwargs...), path)
 
-function markerIndex(mData,mSR)
-    indexDict::Dict{Int, Vector{Tuple{Int,Int}}} = Dict()
-    N::UInt = length(mData)
+"""
+    markerIndex(mData, mSR) -> Dict{Int, Tuple{Float64,Float64}}
+
+Internal: scan `mData` for runs of equal integer level and return,
+for each level, the (start, end) time of its longest run in seconds.
+"""
+function markerIndex(mData::AbstractVector{<:Real}, mSR::Real)
+    indexDict = Dict{Int, Vector{Tuple{Int,Int}}}()
+    N = length(mData)
     let
         prevValue::Int = 0
-        indexStart::UInt = 1
-        indexEnd::UInt = 0
+        indexStart::Int = 1
+        indexEnd::Int   = 0
         for i = 1:N
             currValue = Int(mData[i])
             if ((currValue != prevValue) || (i == N)) && i != 1
                 indexEnd = i - 1
-                if !haskey(indexDict,prevValue)
-                    indexDict[prevValue] = []
+                if !haskey(indexDict, prevValue)
+                    indexDict[prevValue] = Tuple{Int,Int}[]
                 end
-                indexDict[prevValue] = push!(indexDict[prevValue],(indexStart,indexEnd))
+                push!(indexDict[prevValue], (indexStart, indexEnd))
                 indexStart = i
             end
             prevValue = currValue
@@ -53,21 +91,21 @@ function markerIndex(mData,mSR)
     for j in keys(indexDict)
         let
             maxRange::Int = 0
-            maxInd::Int = 1
+            maxInd::Int   = 1
             for l in eachindex(indexDict[j])
-                range = indexDict[j][l][2] - indexDict[j][l][1]
-                if range > maxRange
-                    maxRange = range
-                    maxInd = l
+                rng = indexDict[j][l][2] - indexDict[j][l][1]
+                if rng > maxRange
+                    maxRange = rng
+                    maxInd   = l
                 end
             end
             indexDict[j] = [indexDict[j][maxInd]]
         end
     end
-    indexDictReducedTime::Dict{Int, Tuple{Float64,Float64}} = Dict()
-    for key in keys(indexDict)
-        indexDictReducedTime[key] = (Float64((indexDict[key][1][1]-1)/mSR),Float64((indexDict[key][1][2]-1)/mSR))
+    out = Dict{Int, Tuple{Float64,Float64}}()
+    for k in keys(indexDict)
+        out[k] = (Float64((indexDict[k][1][1] - 1) / mSR),
+                  Float64((indexDict[k][1][2] - 1) / mSR))
     end
-
-    return indexDictReducedTime
+    return out
 end
