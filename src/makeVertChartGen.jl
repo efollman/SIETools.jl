@@ -13,14 +13,16 @@ const _ChannelSelector = Union{AbstractString, Tuple, AbstractVector}
     ChartChannel(name, id, units, t, d)
 
 Lightweight, mutable container holding everything `makeChart` needs to
-render a single trace. `t` and `d` are plain `Vector{Float64}` so they
-can be filtered, resampled, or otherwise edited before plotting.
+render a single trace. `d` is a plain `Vector{Float64}` so it can be
+filtered, resampled, or otherwise edited before plotting. `t` is an
+`AbstractVector{Float64}` so that the common case of a uniformly-sampled
+time axis can be stored as a cheap `LinRange` (no per-sample allocation).
 """
 mutable struct ChartChannel
     name::String
     id::Int
     units::String
-    t::Vector{Float64}
+    t::AbstractVector{Float64}
     d::Vector{Float64}
 end
 
@@ -47,14 +49,15 @@ end
 
 function _readwindow(file::SomatSIE.SieFile, ch::SomatSIE.Channel,
                      plotRange::Tuple{<:Real,<:Real})
-    t = collect(timevec(file, ch))
-    d = Vector{Float64}(valuevec(file, ch))
-    if !any(isnan, plotRange)
-        cond = findall((t .>= plotRange[1]) .& (t .<= plotRange[2]))
-        t = t[cond]
-        d = d[cond]
+    tv = timevec(file, ch)
+    dv = valuevec(file, ch)
+    d  = dv isa Vector{Float64} ? dv : Vector{Float64}(dv)
+    if any(isnan, plotRange)
+        # Unwindowed: keep `tv` as-is (typically a `LinRange`, no alloc).
+        return tv, d
     end
-    return t, d
+    cond = findall((tv .>= plotRange[1]) .& (tv .<= plotRange[2]))
+    return tv[cond], d[cond]
 end
 
 """

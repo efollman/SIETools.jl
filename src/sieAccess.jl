@@ -90,10 +90,16 @@ function timevec(file::SomatSIE.SieFile, ch::SomatSIE.Channel)
        tagget(dim0Tags, "core:units", "") == "Seconds" &&
        haskey(chTags, "core:sample_rate")
 
-        sr   = Float64(tagget(chTags, "core:sample_rate"))
-        # libsie still reads dim0 to learn length & start; but reading the
-        # whole vector is the only general way to get N without spinning
-        # up the spigot ourselves. The cost is paid once at open.
+        sr = Float64(tagget(chTags, "core:sample_rate"))
+        # Prefer a cheap length-only query if SomatSIE provides it
+        # (walks the spigot without materializing the dim0 vector).
+        if hasmethod(SomatSIE.numrows, Tuple{SomatSIE.SieFile, SomatSIE.Channel})
+            len = SomatSIE.numrows(file, ch)
+            len == 0 && return LinRange(0.0, 0.0, 0)
+            start = Float64(tagget(chTags, "core:start_time", 0.0))
+            return LinRange(start, start + (len - 1) / sr, len)
+        end
+        # Fallback for older SomatSIE: read dim0 to learn length.
         t0 = read(file, dim0)
         len = length(t0)
         len == 0 && return LinRange(0.0, 0.0, 0)
