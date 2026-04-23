@@ -45,6 +45,8 @@ export markExtract
 export canErrFindr
 
 export makeChart
+export ChartChannel
+export chartChannels
 
 export moving_mean
 export sustained_max

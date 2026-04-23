@@ -1,14 +1,30 @@
 #=
-makeChart: stack vertical time-history plots straight from a SIE file.
+makeChart: stack vertical time-history plots.
 
-Built on SomatSIE 0.3 — channels are read on demand by name; only the
-selected channels (default: all) and only the requested time window
-(default: full record) are pulled from disk.
+Channel data is represented as `ChartChannel` objects (name, id, units,
+time, data). `makeChart` operates on a vector of these so the caller can
+edit the data before plotting. Convenience methods accept a `SomatSIE.SieFile`
+or a path and build the `ChartChannel` vector on demand using SomatSIE 0.3.
 =#
 
 const _ChannelSelector = Union{AbstractString, Tuple, AbstractVector}
 
-# Resolve a channel-id integer or a channel name string to a Channel.
+"""
+    ChartChannel(name, id, units, t, d)
+
+Lightweight, mutable container holding everything `makeChart` needs to
+render a single trace. `t` and `d` are plain `Vector{Float64}` so they
+can be filtered, resampled, or otherwise edited before plotting.
+"""
+mutable struct ChartChannel
+    name::String
+    id::Int
+    units::String
+    t::Vector{Float64}
+    d::Vector{Float64}
+end
+
+# Resolve a channel-id integer or a channel name string to a SomatSIE.Channel.
 function _resolvechannel(file::SomatSIE.SieFile, key)
     if key isa Integer
         ch = SomatSIE.findchannel(file, Int(key))
@@ -21,6 +37,12 @@ function _resolvechannel(file::SomatSIE.SieFile, key)
     else
         error("unsupported channel selector: ", typeof(key))
     end
+end
+
+function _channelunits(ch::SomatSIE.Channel)
+    dims = SomatSIE.dimensions(ch)
+    return length(dims) >= 2 ?
+        String(tagget(SomatSIE.tags(dims[2]), "core:units", "")) : ""
 end
 
 function _readwindow(file::SomatSIE.SieFile, ch::SomatSIE.Channel,
@@ -36,31 +58,103 @@ function _readwindow(file::SomatSIE.SieFile, ch::SomatSIE.Channel,
 end
 
 """
-    makeChart(file::SomatSIE.SieFile; kwargs...) -> Makie.Figure
-    makeChart(path::AbstractString;   kwargs...) -> Makie.Figure
+    ChartChannel(file::SomatSIE.SieFile, key; plotRange=(NaN,NaN))
 
-Render a vertical stack of time-history plots from `file`.
+Build a `ChartChannel` by reading channel `key` (name `String` or id
+`Integer`) from `file`, optionally restricted to `plotRange`.
+"""
+function ChartChannel(file::SomatSIE.SieFile, key;
+                      plotRange::Tuple{<:Real,<:Real} = (NaN, NaN))
+    ch = _resolvechannel(file, key)
+    dims = SomatSIE.dimensions(ch)
+    if length(dims) >= 1 &&
+       tagget(SomatSIE.tags(dims[1]), "core:units", "") != "Seconds"
+        @warn "Time units not \"Seconds\" on channel '$(SomatSIE.name(ch))'"
+    end
+    t, d = _readwindow(file, ch, plotRange)
+    return ChartChannel(String(SomatSIE.name(ch)), Int(SomatSIE.id(ch)),
+                        _channelunits(ch), t, d)
+end
+
+"""
+    chartChannels(file; channelsN=[], plotRange=(NaN,NaN)) -> Vector
+
+Build the row-spec used by `makeChart` from `file`. Each entry of
+`channelsN` is either a single name/id (one trace per row) or a tuple/
+vector of names/ids (overlaid traces in a row). Defaults to every
+channel in the file, sorted by id, one per row.
+
+Returns a `Vector` whose elements are either a `ChartChannel` (one
+trace) or `Vector{ChartChannel}` (multi-trace row), suitable for
+passing directly to `makeChart`.
+"""
+function chartChannels(file::SomatSIE.SieFile;
+                       channelsN::Vector = [],
+                       plotRange::Tuple{<:Real,<:Real} = (NaN, NaN))
+    if isempty(channelsN)
+        chs = SomatSIE.channels(file)
+        sort!(chs; by = SomatSIE.id)
+        channelsN = [SomatSIE.name(c) for c in chs]
+    end
+    rows = Vector{Any}(undef, length(channelsN))
+    for i in eachindex(channelsN)
+        sel = channelsN[i]
+        if sel isa Union{Tuple, AbstractVector} && !(sel isa AbstractString)
+            rows[i] = [ChartChannel(file, k; plotRange = plotRange) for k in sel]
+        else
+            rows[i] = ChartChannel(file, sel; plotRange = plotRange)
+        end
+    end
+    return rows
+end
+
+chartChannels(path::AbstractString; kwargs...) =
+    withfile(f -> chartChannels(f; kwargs...), path)
+
+# Normalize a single row entry into Vector{ChartChannel}.
+_rowchannels(x::ChartChannel) = ChartChannel[x]
+_rowchannels(x::AbstractVector{ChartChannel}) = collect(x)
+function _rowchannels(x::AbstractVector)
+    all(e -> e isa ChartChannel, x) ||
+        error("row entries must be ChartChannel or Vector{ChartChannel}")
+    return ChartChannel[e for e in x]
+end
+function _rowchannels(x::Tuple)
+    all(e -> e isa ChartChannel, x) ||
+        error("row entries must be ChartChannel or Vector{ChartChannel}")
+    return ChartChannel[e for e in x]
+end
+
+"""
+    makeChart(channels::AbstractVector; kwargs...) -> Makie.Figure
+    makeChart(file::SomatSIE.SieFile;    kwargs...) -> Makie.Figure
+    makeChart(path::AbstractString;      kwargs...) -> Makie.Figure
+
+Render a vertical stack of time-history plots.
+
+The primary method takes a vector of rows. Each row is either a
+`ChartChannel` (one trace) or a `Vector{ChartChannel}` (overlaid traces
+on the same axis). The `SieFile`/path methods build the row vector via
+`chartChannels` and forward to the primary method, allowing callers to
+edit channel data between extraction and plotting.
 
 Keyword arguments:
-* `plotRange::Tuple{<:Real,<:Real}` — `(tmin, tmax)` window in seconds;
-  default `(NaN, NaN)` plots the whole record.
 * `DSthreshold::Integer` — LTTB downsample target per axis (default 10000).
 * `rowSize::Tuple{<:Integer,<:Integer}` — `(width_px, row_height_px)`.
 * `heightRatio::Vector{<:Real}` — relative row heights; defaults to all 1.
-* `channelsN` — vector of channel selectors. Each entry is either a name
-  (`String`/`Integer`) producing one trace per row, or a `Tuple`/`Vector`
-  of names producing several overlaid traces in one row. Defaults to
-  every channel in the file, sorted by id.
 * `cycleColor::Bool` — keep cycling palette across rows (default `true`).
 * `table::DataFrame`, `tablePos::Real` — optional table inserted at row
   `tablePos` (1-based, 0 disables).
+
+`SieFile`/path methods additionally accept:
+* `plotRange::Tuple{<:Real,<:Real}` — `(tmin, tmax)` window in seconds;
+  default `(NaN, NaN)` plots the whole record.
+* `channelsN::Vector` — selectors as described in `chartChannels`.
 """
-function makeChart(file::SomatSIE.SieFile;
-                   plotRange::Tuple{<:Real,<:Real} = (NaN, NaN),
+function makeChart(channels::AbstractVector;
                    DSthreshold::Integer = 10000,
                    rowSize::Tuple{<:Integer,<:Integer} = (1000, 300),
                    heightRatio::Vector{<:Real} = Float64[],
-                   channelsN::Vector = [],
                    cycleColor::Bool = true,
                    table::DataFrame = DataFrame(),
                    tablePos::Real = 0)
@@ -70,18 +164,8 @@ function makeChart(file::SomatSIE.SieFile;
         DSthreshold = 10000
     end
 
-    # Build the row spec.
-    if isempty(channelsN)
-        chs = SomatSIE.channels(file)
-        sort!(chs; by = SomatSIE.id)
-        channelsN = [SomatSIE.name(c) for c in chs]
-    end
-
-    rowSpec = Vector{Vector{Any}}(undef, length(channelsN))
-    for i in eachindex(channelsN)
-        rowSpec[i] = channelsN[i] isa Union{Tuple, AbstractVector} ?
-            collect(channelsN[i]) : Any[channelsN[i]]
-    end
+    rowSpec = [_rowchannels(r) for r in channels]
+    isempty(rowSpec) && error("makeChart: no channels supplied")
 
     if isempty(heightRatio)
         heightRatio = fill(1.0, length(rowSpec))
@@ -99,12 +183,9 @@ function makeChart(file::SomatSIE.SieFile;
     colori   = 1
     colorFlag = false
 
-    for (i, sel) in enumerate(rowSpec)
-        rowChs   = [_resolvechannel(file, k) for k in sel]
+    for (i, rowChs) in enumerate(rowSpec)
         firstCh  = rowChs[1]
-        firstDim = SomatSIE.dimensions(firstCh)
-        chUnits::String = length(firstDim) >= 2 ?
-            String(tagget(SomatSIE.tags(firstDim[2]), "core:units", "")) : ""
+        chUnits  = firstCh.units
 
         tableoff = (tablePos != 0 && i >= tablePos) ? 1 : 0
 
@@ -113,24 +194,15 @@ function makeChart(file::SomatSIE.SieFile;
         push!(ax, axi)
 
         title = ""
-        time_d = Dict{Int, Any}()
+        time_d = Dict{Int, Vector{Float64}}()
         data_d = Dict{Int, Vector{Float64}}()
 
         for (k, ch) in pairs(rowChs)
-            chName = SomatSIE.name(ch)
-            chId   = SomatSIE.id(ch)
             title = isempty(title) ?
-                "Ch" * string(chId) * ": " * chName :
-                title * ", Ch" * string(chId) * ": " * chName
+                "Ch" * string(ch.id) * ": " * ch.name :
+                title * ", Ch" * string(ch.id) * ": " * ch.name
 
-            dims = SomatSIE.dimensions(ch)
-            if length(dims) >= 1 &&
-               tagget(SomatSIE.tags(dims[1]), "core:units", "") != "Seconds"
-                @warn "Time units not \"Seconds\" on channel '$chName'"
-            end
-
-            t, d   = _readwindow(file, ch, plotRange)
-            tx, dx = lttb(t, d, DSthreshold)
+            tx, dx = lttb(ch.t, ch.d, DSthreshold)
             time_d[k] = tx
             data_d[k] = dx
         end
@@ -143,7 +215,7 @@ function makeChart(file::SomatSIE.SieFile;
         for (k, ch) in pairs(rowChs)
             lines!(axi, time_d[k], data_d[k];
                 color = Cycled(colori),
-                label = SomatSIE.name(ch),
+                label = ch.name,
             )
             colori += 1
         end
@@ -169,6 +241,14 @@ function makeChart(file::SomatSIE.SieFile;
 
     rowgap!(F.layout, 5)
     return F
+end
+
+function makeChart(file::SomatSIE.SieFile;
+                   plotRange::Tuple{<:Real,<:Real} = (NaN, NaN),
+                   channelsN::Vector = [],
+                   kwargs...)
+    rows = chartChannels(file; channelsN = channelsN, plotRange = plotRange)
+    return makeChart(rows; kwargs...)
 end
 
 makeChart(path::AbstractString; kwargs...) =
