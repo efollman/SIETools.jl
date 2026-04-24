@@ -212,7 +212,7 @@ function makeChart(channels::AbstractVector;
         axi.title = title
 
         length(rowChs) > 1 && (colorFlag = true)
-        (cycleColor == false || colorFlag) || (colori = 1)
+        (cycleColor || colorFlag) || (colori = 1)
         length(rowChs) == 1 && (colorFlag = false)
 
         for (k, ch) in pairs(rowChs)
